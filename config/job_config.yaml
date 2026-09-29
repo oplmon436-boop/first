@@ -1,0 +1,65 @@
+job:
+  name: ecommerce_orders_etl
+  version: 1.0
+  description: "ETL job for processing e-commerce orders data"
+
+input:
+  source_name: ecommerce-data_raw
+  input_type: csv
+  input_path: data/raw/
+  input_suffix: .csv
+  input_schema:
+    order_id: str
+    customer_id: str
+    product_id: str
+    product_name: str
+    category: str
+    quantity: int
+    unit_price: float
+    order_date: str
+    status: str
+    country: str
+
+rejection:
+  reject_path: data/rejected/
+  reject_type: csv
+  max_rejections_rate: .20
+
+output:
+  fact_table_name: fact_orders
+  output_path: data/processed/
+  output_type: csv
+  save_mode: overwrite
+  partition_by: order_date
+
+etl:
+  rules:
+    - name: clean_product_name
+      description: "Clean product names by removing leading/trailing whitespace"
+      type: transformation
+    - name: normalize_status
+      description: "Normalize status values to a standard format"
+      type: transformation
+    - name: validate_quantity
+      description: "Validate that quantity is greater than 0"
+      type: validation
+      condition: "quantity > 0"
+    - name: enrich_category_tier
+      description: "Enrich category information with tier levels"
+      type: transformation
+    - name: validate_unit_price
+      description: "Validate that unit_price is greater than 0"
+      type: validation
+      condition: "unit_price > 0"
+    - name: calculate_revenue
+      description: "Calculate total revenue for each order"
+      type: transformation
+      expression: "quantity * unit_price AS revenue"
+
+  quality:
+  checks:
+    - rows_source
+    - rows_target
+    - rows_rejected
+    - revenue_not_null
+    - revenue_positive
